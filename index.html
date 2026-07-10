@@ -123,7 +123,7 @@
 
 <div class="container">
     <h1>그린 데이터 센터 (Green IDC)</h1>
-    <div class="subtitle">멀티 시나리오 기반 실시간 트래픽 대시보드</div>
+    <div class="subtitle">외부 실네트워크 기반 트래픽 대시보드</div>
 
     <button id="connectBtn" class="btn btn-connect">1. 아두이노 블루투스 연결</button>
 
@@ -132,7 +132,7 @@
             <div id="player"></div>
         </div>
         
-        <button id="downloadBtn" class="btn btn-download">시나리오 2: 대용량 파일(100MB) 다운로드</button>
+        <button id="downloadBtn" class="btn btn-download">시나리오 2: 실제 외부 파일(20MB) 다운로드</button>
 
         <div class="traffic-display">
             <span>실제 시스템 네트워크 부하 (Real TRF)</span>
@@ -141,7 +141,7 @@
     </div>
 
     <div class="status-box" id="statusText">
-        상태: 블루투스 연결이 필요합니다.
+        상태: 블루투스 연결이 필요합니다. (아두이노 없이도 다운로드 테스트 가능)
     </div>
 </div>
 
@@ -151,8 +151,8 @@
     let player = null;
     
     let totalBytesInWindow = 0;
-    // 최대 예상 대역폭 (다운로드 시 초당 최대 10MB 대역을 100% 부하로 매핑하도록 조정)
-    const MAX_EXPECTED_SPEED = 10 * 1024 * 1024; 
+    // 최대 예상 대역폭 (초당 5MB 다운로드 속도를 100% 부하로 매핑)
+    const MAX_EXPECTED_SPEED = 5 * 1024 * 1024; 
 
     const UUID_SERVICE = "0000ffe0-0000-1000-8000-00805f9b34fb";
     
@@ -176,12 +176,12 @@
         });
     }
 
-    // 2. 브라우저 네트워크 패킷 측정 (유튜브 조각 + 가상 다운로드 블롭 파일 모두 감지)
+    // 2. 순수 브라우저 네트워크 패킷 실시간 측정 센서
     if (window.PerformanceObserver) {
         const observer = new PerformanceObserver((list) => {
             list.getEntries().forEach((entry) => {
-                // 유튜브 비디오 패킷 혹은 가상 다운로드(blob/fetch) 통신 바이트 누적
-                if ((entry.name.includes('googlevideo.com') || entry.name.includes('blob') || entry.entryType === 'resource') && entry.transferSize) {
+                // 유튜브 비디오 서버 및 외부 파일 다운로드 주소로부터 유입되는 모든 실시간 바이트 축적
+                if (entry.entryType === 'resource' && entry.transferSize) {
                     totalBytesInWindow += entry.transferSize;
                 }
             });
@@ -189,39 +189,40 @@
         observer.observe({ type: 'resource', buffered: true });
     }
 
-    // 3. 가상 100MB 파일 생성 및 실제 다운로드 유도 로직 (Blob API)
-    downloadBtn.addEventListener('click', () => {
-        statusText.innerText = "상태: 데이터센터 대용량 파일 전송 중 (버스트 트래픽 발생)";
-        
-        // 메인 메모리에 가상으로 100MB(102,400,000 바이트) 크기의 더미 데이터 배열 생성
-        const buffer = new ArrayBuffer(100 * 1024 * 1024); 
-        const view = new Uint8Array(buffer);
-        for(let i=0; i<view.length; i++) { view[i] = i % 256; } // 더미 데이터 채우기
-        
-        const blob = new Blob([buffer], { type: "application/octet-stream" });
-        const blobUrl = URL.createObjectURL(blob);
-        
-        // 성능 측정 센서에 수동으로 다운로드 바이트 강제 주입하여 부하 연동
-        totalBytesInWindow += 100 * 1024 * 1024;
+    // 3. 실제 외부 오픈 고속 CDN 서버에서 파일을 비동기로 다운로드하는 로직
+    downloadBtn.addEventListener('click', async () => {
+        downloadBtn.disabled = true;
+        downloadBtn.innerText = "다운로드 중...";
+        statusText.innerText = "상태: 외부 CDN 인프라로부터 20MB 파일 실시간 전송 중...";
 
-        // 실제 브라우저 파일 다운로드 동작 유도
-        const a = document.createElement('a');
-        a.href = blobUrl;
-        a.download = "IDC_Dummy_100MB.dat";
-        document.body.appendChild(a);
-        a.click();
-        
-        // 다운로드 직후 메모리 해제 및 링크 삭제
-        setTimeout(() => {
-            URL.revokeObjectURL(blobUrl);
-            a.remove();
-        }, 100);
+        // 전 세계 개발자들이 테스트용으로 쓰는 실제 고속 파일 다운로드 URL (무작위 쿼리를 붙여 브라우저 캐시 방지)
+        const targetUrl = `https://speed.cloudflare.com/__down?bytes=20000000&_nocache=${Date.now()}`;
+
+        try {
+            const response = await fetch(targetUrl);
+            if (!response.ok) throw new Error("네트워크 응답 실패");
+            
+            // 실제 스트리밍 바이트 읽기 처리 루프 (패킷 센서가 실시간으로 낚아채도록 유도)
+            const reader = response.body.getReader();
+            while (true) {
+                const { done } = await reader.read();
+                if (done) break;
+            }
+
+            statusText.innerText = "상태: 외부 파일 다운로드 완료! 시스템 안정화 상태 진입.";
+        } catch (error) {
+            console.error(error);
+            statusText.innerText = "오류: 외부 서버 다운로드 실패 (" + error.message + ")";
+        } finally {
+            downloadBtn.disabled = false;
+            downloadBtn.innerText = "시나리오 2: 실제 외부 파일(20MB) 다운로드";
+        }
     });
 
     // 4. 0.5초마다 축적된 패킷 용량을 계산하여 아두이노로 실시간 전송
     setInterval(() => {
-        let currentSpeed = totalBytesInWindow * 2; 
-        totalBytesInWindow = 0; 
+        let currentSpeed = totalBytesInWindow * 2; // 0.5초치 데이터를 초당 데이터량(Bps)으로 환산
+        totalBytesInWindow = 0; // 초기화
 
         let trafficPercentage = Math.min(Math.round((currentSpeed / MAX_EXPECTED_SPEED) * 100), 100);
         
@@ -271,14 +272,15 @@
                     break;
                 }
             }
-            statusText.innerText = "상태: 연결 성공! 기능들이 활성화되었습니다.";
+            statusText.innerText = "상태: 연결 성공! 외부 네트워크 측정 준비 완료.";
             connectBtn.innerText = "✔ 연결 완료";
             connectBtn.classList.add('connected');
-            downloadBtn.disabled = false; // 블루투스 연결 시 다운로드 버튼 활성화
         } catch (error) {
             statusText.innerText = "오류: 연결 실패 (" + error.message + ")";
         }
     });
+</script>
+
 </script>
 
 </body>
