@@ -120,11 +120,10 @@
 </div>
 
 <script>
-    // Web Bluetooth API 통신 설정을 위한 전역 변수
     let bluetoothDevice = null;
-    let rxCharacteristic = null; // 아두이노로 데이터를 보낼 통로
+    let rxCharacteristic = null;
+    let isSending = false; // 전송 락(Lock) 변수 추가
 
-    // UUID 설정 (JY-MCU/HC-06 규격 표준 UUID)
     const UUID_SERVICE = "0000ffe0-0000-1000-8000-00805f9b34fb";
     
     const connectBtn = document.getElementById('connectBtn');
@@ -132,8 +131,6 @@
     const trafficValue = document.getElementById('trafficValue');
     const statusText = document.getElementById('statusText');
 
-    // 블루투스 연결 함수
-    // 기존 connectBtn 클릭 이벤트 부분을 아래 코드로 교체합니다.
     connectBtn.addEventListener('click', async () => {
         if (bluetoothDevice && bluetoothDevice.gatt.connected) {
             statusText.innerText = "상태: 이미 연결되어 있습니다.";
@@ -155,7 +152,6 @@
             const service = await server.getPrimaryService(UUID_SERVICE);
             
             statusText.innerText = "상태: 통신 특성 검색 중...";
-            // [수정 포인트] 특정 순서에 의존하지 않고, 쓰기(Write) 기능이 지원되는 통로를 직접 찾음
             const characteristics = await service.getCharacteristics();
             for (let c of characteristics) {
                 if (c.properties.write || c.properties.writeWithoutResponse) {
@@ -179,20 +175,39 @@
         }
     });
 
-    // 슬라이더 값이 바뀔 때마다 아두이노로 데이터를 전송하는 이벤트
+    // 전송 안정성을 개선한 데이터 송신 로직
     trafficSlider.addEventListener('input', async (e) => {
         const value = e.target.value;
-        trafficValue.innerText = value + "%";
+        trafficValue.innerText = value + "%"; // 웹 UI 숫자는 즉시 변경
+
+        // 이전 전송 연산이 처리 중이면 다음 전송을 스킵하여 보드 과부하 방지
+        if (isSending) return; 
 
         if (rxCharacteristic) {
             try {
-                // 문자열 데이터를 바이트 배열로 변환하여 아두이노 Serial로 전송 (끝에 개행문자 포함)
+                isSending = true;
                 const encoder = new TextEncoder();
                 const data = encoder.encode(value + "\n");
                 await rxCharacteristic.writeValue(data);
             } catch (error) {
                 console.error("데이터 전송 실패:", error);
                 statusText.innerText = "상태: 데이터 전송 오류 발생";
+            } finally {
+                isSending = false; // 전송이 완료되면 다시 잠금 해제
+            }
+        }
+    });
+
+    // 드래그를 놓은 '최종 값'은 무조건 한 번 더 확실하게 전송 (보정용)
+    trafficSlider.addEventListener('change', async (e) => {
+        const value = e.target.value;
+        if (rxCharacteristic) {
+            try {
+                const encoder = new TextEncoder();
+                const data = encoder.encode(value + "\n");
+                await rxCharacteristic.writeValue(data);
+            } catch (error) {
+                console.error("최종 데이터 전송 실패:", error);
             }
         }
     });
