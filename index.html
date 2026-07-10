@@ -189,34 +189,29 @@
         observer.observe({ type: 'resource', buffered: true });
     }
 
-    // 3. 실제 외부 오픈 고속 CDN 서버에서 파일을 비동기로 다운로드하는 로직
-    downloadBtn.addEventListener('click', async () => {
+    // 3. 실제 외부 오픈 고속 CDN 서버에서 파일을 컴퓨터로 진짜 다운로드하는 로직
+    downloadBtn.addEventListener('click', () => {
         downloadBtn.disabled = true;
         downloadBtn.innerText = "다운로드 중...";
-        statusText.innerText = "상태: 외부 CDN 인프라로부터 20MB 파일 실시간 전송 중...";
+        statusText.innerText = "상태: 외부 CDN 인프라로부터 20MB 파일 실시간 다운로드 시작...";
 
-        // 전 세계 개발자들이 테스트용으로 쓰는 실제 고속 파일 다운로드 URL (무작위 쿼리를 붙여 브라우저 캐시 방지)
+        // 크라우드플레어의 실제 20MB 다운로드 테스트용 다이렉트 URL
         const targetUrl = `https://speed.cloudflare.com/__down?bytes=20000000&_nocache=${Date.now()}`;
 
-        try {
-            const response = await fetch(targetUrl);
-            if (!response.ok) throw new Error("네트워크 응답 실패");
-            
-            // 실제 스트리밍 바이트 읽기 처리 루프 (패킷 센서가 실시간으로 낚아채도록 유도)
-            const reader = response.body.getReader();
-            while (true) {
-                const { done } = await reader.read();
-                if (done) break;
-            }
-
-            statusText.innerText = "상태: 외부 파일 다운로드 완료! 시스템 안정화 상태 진입.";
-        } catch (error) {
-            console.error(error);
-            statusText.innerText = "오류: 외부 서버 다운로드 실패 (" + error.message + ")";
-        } finally {
+        // 임시 a 태그를 생성하여 실제 브라우저 다운로드 파이프라인 발동
+        const a = document.createElement('a');
+        a.href = targetUrl;
+        a.download = "IDC_Real_Data_20MB.dat"; // 저장될 파일 이름
+        document.body.appendChild(a);
+        a.click(); // 강제 클릭으로 브라우저 진짜 다운로드 창 띄우기
+        
+        // 다운로드 시작 후 버튼 상태 원상복구
+        setTimeout(() => {
+            a.remove();
             downloadBtn.disabled = false;
             downloadBtn.innerText = "시나리오 2: 실제 외부 파일(20MB) 다운로드";
-        }
+            statusText.innerText = "상태: 외부 파일 브라우저 다운로드 요청 완료!";
+        }, 2000);
     });
 
     // 4. 0.5초마다 축적된 패킷 용량을 계산하여 아두이노로 실시간 전송
