@@ -133,37 +133,46 @@
     const statusText = document.getElementById('statusText');
 
     // 블루투스 연결 함수
+    // 기존 connectBtn 클릭 이벤트 부분을 아래 코드로 교체합니다.
     connectBtn.addEventListener('click', async () => {
         if (bluetoothDevice && bluetoothDevice.gatt.connected) {
             statusText.innerText = "상태: 이미 연결되어 있습니다.";
             return;
         }
-
+    
         try {
             statusText.innerText = "상태: 아두이노 탐색 중...";
             
-            // 클래식 블루투스(Serial Port Profile) 기반 HC-06 탐색 및 필터링
             bluetoothDevice = await navigator.bluetooth.requestDevice({
-                filters: [{ namePrefix: 'HC' }, { namePrefix: 'linvor' }, { namePrefix: 'BT' }],
+                filters: [{ namePrefix: 'HC' }, { namePrefix: 'linvor' }, { namePrefix: 'BT' }, { namePrefix: 'AT' }],
                 optionalServices: [UUID_SERVICE]
             });
-
+    
             statusText.innerText = "상태: 서버 연결 중...";
             const server = await bluetoothDevice.gatt.connect();
-
+    
             statusText.innerText = "상태: 서비스 프로파일 로드 중...";
             const service = await server.getPrimaryService(UUID_SERVICE);
             
-            // 가상의 통신 캐릭터리스틱 획득 (아두이노 RX 핀으로 쏠 통로)
+            statusText.innerText = "상태: 통신 특성 검색 중...";
+            // [수정 포인트] 특정 순서에 의존하지 않고, 쓰기(Write) 기능이 지원되는 통로를 직접 찾음
             const characteristics = await service.getCharacteristics();
-            rxCharacteristic = characteristics[0]; 
-
-            // 연결 성공 시 UI 업데이트
+            for (let c of characteristics) {
+                if (c.properties.write || c.properties.writeWithoutResponse) {
+                    rxCharacteristic = c;
+                    break;
+                }
+            }
+    
+            if (!rxCharacteristic) {
+                throw new Error("쓰기 가능한 통신 통로를 찾을 수 없습니다.");
+            }
+    
             statusText.innerText = "상태: 아두이노 연결 성공! 실시간 제어 가능";
             connectBtn.innerText = "✔ 연결 완료";
             connectBtn.classList.add('connected');
-            trafficSlider.disabled = false; // 슬라이더 잠금 해제
-
+            trafficSlider.disabled = false;
+    
         } catch (error) {
             console.error(error);
             statusText.innerText = "오류: 연결 실패 (" + error.message + ")";
