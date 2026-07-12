@@ -85,12 +85,38 @@
         setTimeout(() => { isFiltering = false; document.querySelector('iframe').style.filter = 'none'; }, 5000);
     });
 
-    // 멀티-스트리밍
+    // 멀티-스트리밍 버튼 동작 강화
     document.getElementById('multiBtn').addEventListener('click', () => {
         isMulti = true;
-        document.getElementById('extraVideos').innerHTML = `<div style="background:#000; height:80px;"></div><div style="background:#000; height:80px;"></div>`;
-        setTimeout(() => { isMulti = false; document.getElementById('extraVideos').innerHTML = ''; }, 7000);
+        // 빈 div 대신 실제 영상 컨테이너와 유사한 구조로 생성
+        document.getElementById('extraVideos').innerHTML = `
+            <div style="background:#000; height:100px; flex:1; border:1px solid #333;"></div>
+            <div style="background:#000; height:100px; flex:1; border:1px solid #333;"></div>`;
+        document.getElementById('statusText').innerText = "연산 중: 다중 스트리밍 부하 발생 중...";
+        
+        // 7초 후 자동 종료 로직
+        setTimeout(() => {
+            isMulti = false;
+            document.getElementById('extraVideos').innerHTML = '';
+            document.getElementById('statusText').innerText = "상태: 멀티-스트리밍 종료. 자원 안정화.";
+        }, 7000);
     });
+
+    // 시스템 루프 내 멀티-스트리밍 감지 강화
+    setInterval(() => {
+        let base = (player && player.getPlayerState() === 1) ? 20 + Math.round(Math.random() * 10) : 0;
+        let totalLoad = base + (isFiltering ? 40 : 0) + (isMulti ? 40 : 0);
+        
+        let greenOn = document.getElementById('greenSwitch').checked;
+        
+        // 그린 컴퓨팅 개입 시 멀티-스트리밍 강제 종료 처리
+        if (greenOn && isMulti) {
+            isMulti = false; 
+            document.getElementById('extraVideos').innerHTML = ''; // 화면에서도 확실히 제거
+            document.getElementById('statusText').innerText = "알림: 그린 컴퓨팅이 멀티-스트리밍을 강제 종료했습니다.";
+        }
+        
+        // ... (이하 나머지 로직 동일)
 
     // 시스템 상태 업데이트 루프
     setInterval(() => {
