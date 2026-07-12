@@ -12,7 +12,6 @@
         .btn { width: 100%; padding: 15px; font-size: 16px; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; transition: background 0.2s; margin-bottom: 10px; color: white; }
         .btn-connect { background-color: #3498db; }
         .btn-filter { background-color: #9b59b6; }
-        .btn-multi { background-color: #e67e22; }
         .panel { background: #f8f9fa; border: 1px solid #e9ecef; padding: 20px; border-radius: 12px; margin-bottom: 20px; text-align: left; }
         .panel h3 { margin-top: 0; font-size: 16px; color: #34495e; border-bottom: 2px solid #1abc9c; padding-bottom: 5px; }
         .video-container { position: relative; width: 100%; padding-bottom: 56.25%; background: #000; border-radius: 8px; overflow: hidden; margin-bottom: 5px; }
@@ -33,15 +32,13 @@
 
 <div class="container">
     <h1>미니 그린 컴퓨팅 시스템 (Green IDC)</h1>
-    <div class="subtitle">필터링 및 멀티-스트리밍 연동 전력 최적화 대시보드</div>
+    <div class="subtitle">필터링 연동 전력 최적화 대시보드</div>
 
     <button id="connectBtn" class="btn btn-connect">1. 아두이노 블루투스 인프라 연결</button>
 
     <div class="video-container">
         <div id="player"></div>
     </div>
-    <!-- 멀티 스트리밍용 영상 자리 -->
-    <div id="extraVideos" style="display:grid; grid-template-columns: 1fr 1fr; gap:5px; margin-bottom:10px;"></div>
 
     <div class="panel">
         <h3>📊 IDC 실시간 시스템 자원 모니터링</h3>
@@ -55,10 +52,9 @@
         </div>
 
         <button id="filterBtn" class="btn btn-filter">2. 실시간 영상 고해상도 필터링 가동</button>
-        <button id="multiBtn" class="btn btn-multi">3. 멀티-스트리밍 활성화</button>
 
         <div class="switch-container">
-            <span style="color: #27ae60; font-weight: bold;">🟢 그린 컴퓨팅 (지능형 프레임 제어)</span>
+            <span style="color: #27ae60; font-weight: bold;">🟢 그린 컴퓨팅 활성화</span>
             <label class="switch"><input type="checkbox" id="greenSwitch"><span class="slider"></span></label>
         </div>
     </div>
@@ -70,7 +66,6 @@
     let rx = null; 
     let player = null;
     let isFiltering = false;
-    let isMulti = false;
 
     // 유튜브 로드
     const tag = document.createElement('script');
@@ -85,25 +80,14 @@
         setTimeout(() => { isFiltering = false; document.querySelector('iframe').style.filter = 'none'; }, 5000);
     });
 
-    // 멀티-스트리밍
-    document.getElementById('multiBtn').addEventListener('click', () => {
-        isMulti = true;
-        document.getElementById('extraVideos').innerHTML = `<div style="background:#000; height:80px;"></div><div style="background:#000; height:80px;"></div>`;
-        setTimeout(() => { isMulti = false; document.getElementById('extraVideos').innerHTML = ''; }, 7000);
-    });
-
     // 시스템 상태 업데이트 루프
     setInterval(() => {
         let base = (player && player.getPlayerState() === 1) ? 20 + Math.round(Math.random() * 10) : 0;
-        let totalLoad = base + (isFiltering ? 40 : 0) + (isMulti ? 40 : 0);
+        let totalLoad = base + (isFiltering ? 40 : 0);
         
         let greenOn = document.getElementById('greenSwitch').checked;
-        if (greenOn && (isFiltering || isMulti)) {
-            isFiltering = false; isMulti = false; 
-            document.querySelector('iframe').style.filter = 'none';
-            document.getElementById('extraVideos').innerHTML = '';
-        }
-
+        
+        // [수정] 필터링 유지하되 전력 부하만 효율적으로 계산
         let finalLoad = greenOn ? Math.round(totalLoad * 0.45) : totalLoad;
         
         document.getElementById('trafficDisplay').innerText = Math.round(totalLoad) + "%";
