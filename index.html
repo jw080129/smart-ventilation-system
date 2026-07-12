@@ -73,11 +73,21 @@
     document.getElementsByTagName('script')[0].parentNode.insertBefore(tag, document.getElementsByTagName('script')[0]);
     function onYouTubeIframeAPIReady() { player = new YT.Player('player', { height: '100%', width: '100%', videoId: 'dQw4w9WgXcQ', playerVars: { 'playsinline': 1 } }); }
 
-    // 고해상도 필터링
+    // 고해상도 필터링 (토글 방식)
     document.getElementById('filterBtn').addEventListener('click', () => {
-        isFiltering = true;
-        document.querySelector('iframe').style.filter = 'blur(10px) grayscale(100%)';
-        setTimeout(() => { isFiltering = false; document.querySelector('iframe').style.filter = 'none'; }, 5000);
+        // 기존 상태를 반전시킴 (true -> false, false -> true)
+        isFiltering = !isFiltering;
+        
+        // 시각적 피드백 적용
+        if (isFiltering) {
+            document.querySelector('iframe').style.filter = 'blur(10px) grayscale(100%)';
+            document.getElementById('statusText').innerText = "상태: 필터링 작동 중 (사용자 수동 제어)";
+            document.getElementById('filterBtn').innerText = "2. 실시간 영상 필터링 종료";
+        } else {
+            document.querySelector('iframe').style.filter = 'none';
+            document.getElementById('statusText').innerText = "상태: 필터링 대기 중";
+            document.getElementById('filterBtn').innerText = "2. 실시간 영상 고해상도 필터링 가동";
+        }
     });
 
     // 시스템 상태 업데이트 루프
