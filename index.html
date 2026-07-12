@@ -32,7 +32,6 @@
 
 <div class="container">
     <h1>미니 그린 컴퓨팅 시스템 (Green IDC)</h1>
-    <div class="subtitle">비선형 전력 최적화 대시보드 (Non-linear Model)</div>
 
     <button id="connectBtn" class="btn btn-connect">1. 아두이노 블루투스 인프라 연결</button>
 
@@ -77,12 +76,12 @@
         isFiltering = !isFiltering;
         if (isFiltering) {
             document.querySelector('iframe').style.filter = 'blur(8px) contrast(150%)';
-            document.getElementById('statusText').innerText = "상태: 보안 모자이크 연산 작동 중";
-            document.getElementById('filterBtn').innerText = "2. 실시간 모자이크 연산 종료";
+            document.getElementById('statusText').innerText = "상태: 보안 모자이크 작동 중";
+            document.getElementById('filterBtn').innerText = "2. 실시간 보안 모자이크 종료";
         } else {
             document.querySelector('iframe').style.filter = 'none';
             document.getElementById('statusText').innerText = "상태: 연산 대기 중";
-            document.getElementById('filterBtn').innerText = "2. 실시간 모자이크 연산 가동";
+            document.getElementById('filterBtn').innerText = "2. 실시간 보안 모자이크 작동";
         }
     });
 
