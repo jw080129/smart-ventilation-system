@@ -32,7 +32,7 @@
 
 <div class="container">
     <h1>미니 그린 컴퓨팅 시스템 (Green IDC)</h1>
-    <div class="subtitle">필터링 연동 전력 최적화 대시보드</div>
+    <div class="subtitle">보안 모자이크 연동 전력 최적화 대시보드</div>
 
     <button id="connectBtn" class="btn btn-connect">1. 아두이노 블루투스 인프라 연결</button>
 
@@ -51,7 +51,7 @@
             <span id="loadDisplay" class="val-box" style="color: #3498db;">0%</span>
         </div>
 
-        <button id="filterBtn" class="btn btn-filter">2. 실시간 영상 고해상도 필터링 가동</button>
+        <button id="filterBtn" class="btn btn-filter">2. 실시간 모자이크 연산 가동</button>
 
         <div class="switch-container">
             <span style="color: #27ae60; font-weight: bold;">🟢 그린 컴퓨팅 활성화</span>
@@ -73,20 +73,17 @@
     document.getElementsByTagName('script')[0].parentNode.insertBefore(tag, document.getElementsByTagName('script')[0]);
     function onYouTubeIframeAPIReady() { player = new YT.Player('player', { height: '100%', width: '100%', videoId: 'dQw4w9WgXcQ', playerVars: { 'playsinline': 1 } }); }
 
-    // 고해상도 필터링 (토글 방식)
+    // 모자이크 연산 (토글 방식)
     document.getElementById('filterBtn').addEventListener('click', () => {
-        // 기존 상태를 반전시킴 (true -> false, false -> true)
         isFiltering = !isFiltering;
-        
-        // 시각적 피드백 적용
         if (isFiltering) {
-            document.querySelector('iframe').style.filter = 'blur(10px) grayscale(100%)';
-            document.getElementById('statusText').innerText = "상태: 필터링 작동 중 (사용자 수동 제어)";
-            document.getElementById('filterBtn').innerText = "2. 실시간 영상 필터링 종료";
+            document.querySelector('iframe').style.filter = 'blur(8px) contrast(150%)';
+            document.getElementById('statusText').innerText = "상태: 보안 모자이크 연산 작동 중 (사용자 수동 제어)";
+            document.getElementById('filterBtn').innerText = "2. 실시간 모자이크 종료";
         } else {
             document.querySelector('iframe').style.filter = 'none';
-            document.getElementById('statusText').innerText = "상태: 필터링 대기 중";
-            document.getElementById('filterBtn').innerText = "2. 실시간 영상 고해상도 필터링 가동";
+            document.getElementById('statusText').innerText = "상태: 연산 대기 중";
+            document.getElementById('filterBtn').innerText = "2. 실시간 모자이크 가동";
         }
     });
 
@@ -96,8 +93,6 @@
         let totalLoad = base + (isFiltering ? 40 : 0);
         
         let greenOn = document.getElementById('greenSwitch').checked;
-        
-        // [수정] 필터링 유지하되 전력 부하만 효율적으로 계산
         let finalLoad = greenOn ? Math.round(totalLoad * 0.45) : totalLoad;
         
         document.getElementById('trafficDisplay').innerText = Math.round(totalLoad) + "%";
