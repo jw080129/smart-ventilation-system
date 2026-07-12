@@ -2,259 +2,53 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mini Green Computing IDC Dashboard</title>
+    <title>Visual Traffic Green IDC</title>
     <style>
-        :root {
-            --primary-color: #2ecc71;
-            --danger-color: #e74c3c;
-            --background-color: #f5f6fa;
-            --card-color: #ffffff;
-            --text-color: #2c3e50;
-        }
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--background-color);
-            color: var(--text-color);
-            margin: 0; padding: 20px;
-            display: flex; justify-content: center; align-items: center;
-            min-height: 100vh;
-        }
-        .container {
-            background-color: var(--card-color);
-            padding: 30px; border-radius: 16px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
-            width: 100%; max-width: 560px; text-align: center;
-        }
-        h1 { font-size: 24px; margin-bottom: 5px; color: #1abc9c; }
-        .subtitle { font-size: 14px; color: #7f8c8d; margin-bottom: 25px; }
-        
-        .btn {
-            width: 100%; padding: 15px; font-size: 16px; font-weight: bold;
-            border: none; border-radius: 8px; cursor: pointer;
-            transition: background 0.2s; margin-bottom: 15px;
-        }
-        .btn-connect { background-color: #3498db; color: white; }
-        .btn-connect.connected { background-color: var(--primary-color); }
-        
-        .btn-compute { background-color: #9b59b6; color: white; }
-        .btn-compute:hover { background-color: #8e44ad; }
-        
-        .panel {
-            background: #f8f9fa; border: 1px solid #e9ecef;
-            padding: 20px; border-radius: 12px; margin-bottom: 20px; text-align: left;
-        }
-        .panel h3 { margin-top: 0; font-size: 16px; color: #34495e; border-bottom: 2px solid #1abc9c; padding-bottom: 5px;}
-        
-        .video-container {
-            position: relative; width: 100%; padding-bottom: 56.25%; height: 0;
-            border-radius: 8px; overflow: hidden; margin-bottom: 15px;
-        }
-        .video-container iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
-        
-        .display-row { display: flex; justify-content: space-between; margin: 12px 0; font-size: 16px; font-weight: bold; }
-        .val-box { font-size: 18px; color: #2c3e50; }
-        
-        .switch-container {
-            display: flex; justify-content: space-between; align-items: center;
-            background: #e8f8f5; padding: 15px; border-radius: 8px; margin-top: 15px;
-            border: 2px solid #2ecc71;
-        }
-        .switch { position: relative; display: inline-block; width: 60px; height: 34px; }
-        .switch input { opacity: 0; width: 0; height: 0; }
-        .slider {
-            position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
-            background-color: #ccc; transition: .4s; border-radius: 34px;
-        }
-        .slider:before {
-            position: absolute; content: ""; height: 26px; width: 26px; left: 4px; bottom: 4px;
-            background-color: white; transition: .4s; border-radius: 50%;
-        }
-        input:checked + .slider { background-color: var(--primary-color); }
-        input:checked + .slider:before { transform: translateX(26px); }
-
-        .status-box {
-            font-size: 13px; color: #95a5a6; border-top: 1px solid #eee;
-            padding-top: 15px; margin-top: 20px; text-align: center;
-        }
+        body { margin: 0; background: #2c3e50; color: white; text-align: center; font-family: sans-serif; }
+        canvas { display: block; background: #34495e; width: 100%; height: 300px; }
+        .controls { padding: 20px; }
+        .data-panel { font-size: 20px; margin: 10px; }
     </style>
 </head>
 <body>
-
-<div class="container">
-    <h1>미니 그린 컴퓨팅 시스템 (Green IDC)</h1>
-    <div class="subtitle">실제 패킷 및 워크로드 연동 전력 최적화 대시보드</div>
-
-    <button id="connectBtn" class="btn btn-connect">1. 아두이노 그린 컴퓨팅 시스템 연결</button>
-
-    <div class="video-container">
-        <div id="player"></div>
+    <canvas id="trafficCanvas"></canvas>
+    <div class="controls">
+        <button id="flowBtn" style="padding: 15px;">데이터 스트림 폭주 유발</button>
+        <div class="data-panel">총 트래픽: <span id="val1">0</span>% | 최종 부하: <span id="val2">0</span>%</div>
+        <label><input type="checkbox" id="greenSwitch"> 그린 컴퓨팅 최적화</label>
     </div>
-
-    <div class="panel">
-        <h3>📊 IDC 실시간 시스템 자원 모니터링</h3>
-        <div class="display-row">
-            <span>실제 실시간 종합 트래픽/부하</span>
-            <span id="trafficDisplay" class="val-box">0%</span>
-        </div>
-        <div class="display-row">
-            <span>서버 인프라 최종 전송 부하</span>
-            <span id="loadDisplay" class="val-box" style="color: #3498db;">0%</span>
-        </div>
-
-        <button id="computeBtn" class="btn btn-compute" style="margin-top: 10px; margin-bottom: 5px;">2. 빅데이터 정렬 알고리즘 가동 (CPU 부하 추가)</button>
-
-        <div class="switch-container">
-            <label style="display: flex; align-items: center; gap: 8px; color: #27ae60; font-weight: bold; font-size: 15px;">
-                <span id="greenDot" style="display: inline-block; width: 10px; height: 10px; background-color: #ccc; border-radius: 50%;"></span>
-                그린 컴퓨팅 (지능형 전력 최적화)
-            </label>
-            <label class="switch">
-                <input type="checkbox" id="greenSwitch">
-                <span class="slider"></span>
-            </label>
-        </div>
-    </div>
-
-    <div class="status-box" id="statusText">
-        상태: 아두이노 블루투스 연결이 필요합니다.
-    </div>
-</div>
 
 <script>
-    let bluetoothDevice = null;
-    let rxCharacteristic = null;
-    let player = null;
+    const canvas = document.getElementById('trafficCanvas');
+    const ctx = canvas.getContext('2d');
+    let particles = [];
+    let isFlowing = false;
 
-    let totalBytesInWindow = 0;
-    let cpuLoadWeight = 0; 
-    const MAX_NET_SPEED = 3 * 1024 * 1024; 
-
-    const UUID_SERVICE = "0000ffe0-0000-1000-8000-00805f9b34fb";
-    
-    const connectBtn = document.getElementById('connectBtn');
-    const computeBtn = document.getElementById('computeBtn');
-    const greenSwitch = document.getElementById('greenSwitch');
-    const greenDot = document.getElementById('greenDot');
-    const trafficDisplay = document.getElementById('trafficDisplay');
-    const loadDisplay = document.getElementById('loadDisplay');
-    const statusText = document.getElementById('statusText');
-
-    const tag = document.createElement('script');
-    tag.src = "https://www.youtube.com/iframe_api";
-    document.getElementsByTagName('script')[0].parentNode.insertBefore(tag, document.getElementsByTagName('script')[0]);
-
-    function onYouTubeIframeAPIReady() {
-        player = new YT.Player('player', {
-            height: '100%', width: '100%', videoId: 'dQw4w9WgXcQ',
-            playerVars: { 'playsinline': 1, 'rel': 0 }
-        });
+    // 입자 클래스
+    class Particle {
+        constructor() { this.reset(); }
+        reset() { this.x = Math.random() * canvas.width; this.y = 0; this.speed = 1 + Math.random() * 2; }
+        update() { this.y += this.speed; if(this.y > canvas.height) this.reset(); }
+        draw() { ctx.fillStyle = 'white'; ctx.fillRect(this.x, this.y, 2, 2); }
     }
 
-    if (window.PerformanceObserver) {
-        const observer = new PerformanceObserver((list) => {
-            list.getEntries().forEach((entry) => {
-                if (entry.name.includes('googlevideo.com') && entry.transferSize) {
-                    totalBytesInWindow += entry.transferSize; 
-                }
-            });
-        });
-        observer.observe({ type: 'resource', buffered: true });
-    }
+    document.getElementById('flowBtn').addEventListener('click', () => { isFlowing = true; setTimeout(() => isFlowing = false, 5000); });
 
-    computeBtn.addEventListener('click', () => {
-        cpuLoadWeight = 75; 
-        statusText.innerText = "연산 중: 대규모 빅데이터 정렬 처리 중... (CPU 최대 자원 소모)";
+    function animate() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        let count = isFlowing ? 200 : 10;
+        while(particles.length < count) particles.push(new Particle());
         
-        let executionCount = 0;
-        const heavyTaskInterval = setInterval(() => {
-            let dummyArray = [];
-            for(let i = 0; i < 70000; i++) { dummyArray.push(Math.random()); }
-            dummyArray.sort();
+        let activeLoad = isFlowing ? 100 : 15;
+        let finalLoad = document.getElementById('greenSwitch').checked ? Math.round(activeLoad * 0.4) : activeLoad;
 
-            executionCount++;
-            if(executionCount >= 10) { 
-                clearInterval(heavyTaskInterval);
-                cpuLoadWeight = 0; 
-                statusText.innerText = "상태: 데이터 연산 완료. 시스템 자원이 안정화되었습니다.";
-            }
-        }, 500);
-    });
+        document.getElementById('val1').innerText = activeLoad;
+        document.getElementById('val2').innerText = finalLoad;
 
-    setInterval(() => {
-        let currentNetSpeed = totalBytesInWindow * 2; 
-        totalBytesInWindow = 0; 
-
-        let networkLoad = Math.min(Math.round((currentNetSpeed / MAX_NET_SPEED) * 25), 25);
-        
-        if (player && player.getPlayerState() === YT.PlayerState.PLAYING && networkLoad === 0) {
-            networkLoad = Math.floor(Math.random() * 6) + 12; 
-        }
-
-        let totalCalculatedTraffic = Math.min(networkLoad + cpuLoadWeight, 100);
-        let sendLoad = totalCalculatedTraffic;
-
-        // 🟢 [수정 포인트] 그린 컴퓨팅 활성화 시 동적 감쇄 알고리즘 (고정값 제거)
-        if (greenSwitch.checked && totalCalculatedTraffic > 0) {
-            // 들어오는 종합 부하가 피크(70% 이상)일 때는 60% 감쇄, 평시일 때는 45% 감쇄하여 실시간 출렁임 유지
-            let reductionFactor = totalCalculatedTraffic > 70 ? 0.40 : 0.55;
-            sendLoad = Math.max(Math.round(totalCalculatedTraffic * reductionFactor), 5); // 최소 5% 방어선
-        }
-
-        // 스위치 작동 시에만 초록불 들어오도록 시각 링킹 수정
-        if (greenSwitch.checked) {
-            greenDot.style.backgroundColor = 'var(--primary-color)';
-        } else {
-            greenDot.style.backgroundColor = '#ccc';
-        }
-
-        trafficDisplay.innerText = totalCalculatedTraffic + "%";
-        loadDisplay.innerText = sendLoad + "%";
-
-        trafficDisplay.style.color = totalCalculatedTraffic > 70 ? 'var(--danger-color)' : '#2c3e50';
-        loadDisplay.style.color = greenSwitch.checked ? 'var(--primary-color)' : (sendLoad > 70 ? 'var(--danger-color)' : '#3498db');
-
-        if (rxCharacteristic) {
-            sendBluetoothData(sendLoad);
-        }
-    }, 500);
-
-    async function sendBluetoothData(value) {
-        try {
-            const encoder = new TextEncoder();
-            const data = encoder.encode(value + "\n");
-            await rxCharacteristic.writeValueWithoutResponse(data);
-        } catch (error) {
-            console.error("통신 오류:", error);
-        }
+        particles.slice(0, count).forEach(p => { p.update(); p.draw(); });
+        requestAnimationFrame(animate);
     }
-
-    connectBtn.addEventListener('click', async () => {
-        if (bluetoothDevice && bluetoothDevice.gatt.connected) return;
-        try {
-            statusText.innerText = "상태: 아두이노 인프라 탐색 중...";
-            bluetoothDevice = await navigator.bluetooth.requestDevice({
-                filters: [{ namePrefix: 'HC' }, { namePrefix: 'linvor' }, { namePrefix: 'BT' }, { namePrefix: 'AT' }],
-                optionalServices: [UUID_SERVICE]
-            });
-            statusText.innerText = "상태: 전력 제어 모듈 게이트웨이 동기화 중...";
-            const server = await bluetoothDevice.gatt.connect();
-            const service = await server.getPrimaryService(UUID_SERVICE);
-            const characteristics = await service.getCharacteristics();
-            for (let c of characteristics) {
-                if (c.properties.write || c.properties.writeWithoutResponse) {
-                    rxCharacteristic = c;
-                    break;
-                }
-            }
-            statusText.innerText = "상태: 연동 성공! 유튜브를 재생하거나 알고리즘을 구동해 보세요.";
-            connectBtn.innerText = "✔ 그린 컴퓨팅 인프라 동기화 완료";
-            connectBtn.classList.add('connected');
-        } catch (error) {
-            statusText.innerText = "오류: 하드웨어 동기화 실패 (" + error.message + ")";
-        }
-    });
+    animate();
 </script>
-
 </body>
 </html>
