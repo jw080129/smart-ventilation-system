@@ -32,7 +32,7 @@
 
 <div class="container">
     <h1>미니 그린 컴퓨팅 시스템 (Green IDC)</h1>
-    <div class="subtitle">보안 모자이크 연동 전력 최적화 대시보드</div>
+    <div class="subtitle">비선형 전력 최적화 대시보드 (Non-linear Model)</div>
 
     <button id="connectBtn" class="btn btn-connect">1. 아두이노 블루투스 인프라 연결</button>
 
@@ -51,7 +51,7 @@
             <span id="loadDisplay" class="val-box" style="color: #3498db;">0%</span>
         </div>
 
-        <button id="filterBtn" class="btn btn-filter">2. 실시간 모자이크</button>
+        <button id="filterBtn" class="btn btn-filter">2. 실시간 모자이크 연산 가동</button>
 
         <div class="switch-container">
             <span style="color: #27ae60; font-weight: bold;">🟢 그린 컴퓨팅 활성화</span>
@@ -73,27 +73,34 @@
     document.getElementsByTagName('script')[0].parentNode.insertBefore(tag, document.getElementsByTagName('script')[0]);
     function onYouTubeIframeAPIReady() { player = new YT.Player('player', { height: '100%', width: '100%', videoId: 'dQw4w9WgXcQ', playerVars: { 'playsinline': 1 } }); }
 
-    // 모자이크 연산 (토글 방식)
     document.getElementById('filterBtn').addEventListener('click', () => {
         isFiltering = !isFiltering;
         if (isFiltering) {
             document.querySelector('iframe').style.filter = 'blur(8px) contrast(150%)';
-            document.getElementById('statusText').innerText = "상태: 보안 모자이크 연산 작동 중 (사용자 수동 제어)";
-            document.getElementById('filterBtn').innerText = "2. 실시간 모자이크 종료";
+            document.getElementById('statusText').innerText = "상태: 보안 모자이크 연산 작동 중";
+            document.getElementById('filterBtn').innerText = "2. 실시간 모자이크 연산 종료";
         } else {
             document.querySelector('iframe').style.filter = 'none';
             document.getElementById('statusText').innerText = "상태: 연산 대기 중";
-            document.getElementById('filterBtn').innerText = "2. 실시간 모자이크";
+            document.getElementById('filterBtn').innerText = "2. 실시간 모자이크 연산 가동";
         }
     });
 
-    // 시스템 상태 업데이트 루프
     setInterval(() => {
         let base = (player && player.getPlayerState() === 1) ? 20 + Math.round(Math.random() * 10) : 0;
         let totalLoad = base + (isFiltering ? 40 : 0);
         
         let greenOn = document.getElementById('greenSwitch').checked;
-        let finalLoad = greenOn ? Math.round(totalLoad * 0.45) : totalLoad;
+        
+        // [비선형 전력 모델] 부하가 높을수록 절감 효율이 커지는 로직 적용
+        // totalLoad가 100에 가까울수록 절감율(0.35~0.4)이 강화됨
+        let finalLoad;
+        if (greenOn) {
+            let reductionFactor = 0.35 + (totalLoad / 200); // 100% 부하일 때 약 0.85배로 줄어듬
+            finalLoad = Math.round(totalLoad * reductionFactor);
+        } else {
+            finalLoad = totalLoad;
+        }
         
         document.getElementById('trafficDisplay').innerText = Math.round(totalLoad) + "%";
         let loadEl = document.getElementById('loadDisplay');
@@ -103,7 +110,6 @@
         if (rx) rx.writeValueWithoutResponse(new TextEncoder().encode(Math.round(finalLoad) + "\n"));
     }, 500);
 
-    // 블루투스 연결
     document.getElementById('connectBtn').addEventListener('click', async () => {
         try {
             const device = await navigator.bluetooth.requestDevice({ filters: [{ namePrefix: 'HC' }], optionalServices: ["0000ffe0-0000-1000-8000-00805f9b34fb"] });
