@@ -120,4 +120,32 @@
 
     // 메인 로직: 트래픽 계산 및 아두이노 전송
     setInterval(async () => {
-        let base = (player && typeof player.getPlayerState === 'function' && player.getPlayerState() === 1) ? 20 +
+        let base = (player && typeof player.getPlayerState === 'function' && player.getPlayerState() === 1) ? 20 + Math.round(Math.random() * 10) : 0;
+        let totalLoad = base + (isFiltering ? 40 : 0);
+        let greenOn = document.getElementById('greenSwitch').checked;
+        let finalLoad = greenOn ? Math.round(totalLoad * (0.35 + (totalLoad / 200))) : totalLoad;
+
+        document.getElementById('trafficDisplay').innerText = Math.round(totalLoad) + "%";
+        document.getElementById('loadDisplay').innerText = Math.round(finalLoad) + "%";
+
+        // [핵심 수정] 이전 쓰기가 아직 끝나지 않았으면 이번 전송은 건너뛴다.
+        // (겹쳐서 호출하면 "GATT operation already in progress" 에러로 조용히 실패함)
+        if (writeChar && !isWriting) {
+            isWriting = true;
+            try {
+                const payload = new TextEncoder().encode(Math.round(finalLoad) + "\n");
+                if (writeChar.properties.writeWithoutResponse) {
+                    await writeChar.writeValueWithoutResponse(payload);
+                } else {
+                    await writeChar.writeValue(payload);
+                }
+            } catch (err) {
+                console.error("트래픽 전송 실패:", err);
+            } finally {
+                isWriting = false;
+            }
+        }
+    }, 500);
+</script>
+</body>
+</html>
