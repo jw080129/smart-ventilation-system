@@ -53,7 +53,11 @@
 </div>
 
 <script>
-    let rx = null;
+    // notifyChar: 아두이노 -> 웹 (전압/전류/전력 알림 수신용)
+    // writeChar : 웹 -> 아두이노 (트래픽 값 전송용)
+    let notifyChar = null;
+    let writeChar = null;
+    let isWriting = false;   // GATT 쓰기 충돌(overlap) 방지 플래그
     let player = null;
     let isFiltering = false;
 
@@ -73,20 +77,34 @@
     // 블루투스 연결 및 데이터 수신
     document.getElementById('connectBtn').addEventListener('click', async () => {
         try {
-            const device = await navigator.bluetooth.requestDevice({ 
-                acceptAllDevices: true, 
-                optionalServices: ["0000ffe0-0000-1000-8000-00805f9b34fb"] 
+            const device = await navigator.bluetooth.requestDevice({
+                acceptAllDevices: true,
+                optionalServices: ["0000ffe0-0000-1000-8000-00805f9b34fb"]
             });
             const server = await device.gatt.connect();
             const service = await server.getPrimaryService("0000ffe0-0000-1000-8000-00805f9b34fb");
-            rx = await service.getCharacteristics().then(c => c[0]);
-            
+            const characteristics = await service.getCharacteristics();
+
+            // [핵심 수정] c[0]을 무작정 쓰지 않고, properties를 확인해서
+            // notify 가능한 특성과 write 가능한 특성을 각각 명확히 찾는다.
+            characteristics.forEach(c => {
+                if (c.properties.notify && !notifyChar) notifyChar = c;
+                if ((c.properties.write || c.properties.writeWithoutResponse) && !writeChar) writeChar = c;
+            });
+            // 모듈에 특성이 하나뿐이라 notify/write를 겸하는 경우 대비
+            if (!writeChar) writeChar = notifyChar;
+            if (!notifyChar) notifyChar = writeChar;
+
+            if (!notifyChar || !writeChar) {
+                throw new Error("알림(notify) 또는 쓰기(write) 가능한 캐릭터리스틱을 찾지 못했습니다.");
+            }
+
             document.getElementById('connectBtn').style.backgroundColor = "#2ecc71";
             document.getElementById('connectBtn').innerText = "✔ 연동 완료";
             document.getElementById('statusText').innerText = "상태: 데이터 수신 중...";
 
-            await rx.startNotifications();
-            rx.addEventListener('characteristicvaluechanged', (event) => {
+            await notifyChar.startNotifications();
+            notifyChar.addEventListener('characteristicvaluechanged', (event) => {
                 let data = new TextDecoder().decode(event.target.value).trim().split(',');
                 if (data.length >= 3) {
                     document.getElementById('voltDisplay').innerText = data[0] + " V";
@@ -94,23 +112,12 @@
                     document.getElementById('wattDisplay').innerText = data[2] + " W";
                 }
             });
-        } catch (e) { alert("연결 실패: " + e); }
+        } catch (e) {
+            alert("연결 실패: " + e);
+            console.error("블루투스 연결 오류:", e);
+        }
     });
 
     // 메인 로직: 트래픽 계산 및 아두이노 전송
-    setInterval(() => {
-        let base = (player && typeof player.getPlayerState === 'function' && player.getPlayerState() === 1) ? 20 + Math.round(Math.random() * 10) : 0;
-        let totalLoad = base + (isFiltering ? 40 : 0);
-        let greenOn = document.getElementById('greenSwitch').checked;
-        let finalLoad = greenOn ? Math.round(totalLoad * (0.35 + (totalLoad / 200))) : totalLoad;
-        
-        document.getElementById('trafficDisplay').innerText = Math.round(totalLoad) + "%";
-        document.getElementById('loadDisplay').innerText = Math.round(finalLoad) + "%";
-        
-        if (rx) {
-            rx.writeValueWithoutResponse(new TextEncoder().encode(Math.round(finalLoad) + "\n"));
-        }
-    }, 500);
-</script>
-</body>
-</html>
+    setInterval(async () => {
+        let base = (player && typeof player.getPlayerState === 'function' && player.getPlayerState() === 1) ? 20 +
