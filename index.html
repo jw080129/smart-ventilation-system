@@ -8,7 +8,6 @@
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--background-color); color: var(--text-color); margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
         .container { background-color: var(--card-color); padding: 30px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); width: 100%; max-width: 560px; text-align: center; }
         h1 { font-size: 24px; margin-bottom: 5px; color: #1abc9c; }
-        .subtitle { font-size: 14px; color: #7f8c8d; margin-bottom: 25px; }
         .btn { width: 100%; padding: 15px; font-size: 16px; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; transition: background 0.2s; margin-bottom: 10px; color: white; }
         .btn-connect { background-color: #3498db; }
         .btn-filter { background-color: #9b59b6; }
@@ -32,49 +31,45 @@
 
 <div class="container">
     <h1>미니 그린 컴퓨팅 시스템 (Green IDC)</h1>
-
     <button id="connectBtn" class="btn btn-connect">1. 아두이노 블루투스 인프라 연결</button>
-
-    <div class="video-container">
-        <div id="player"></div>
-    </div>
+    <div class="video-container"><div id="player"></div></div>
 
     <div class="panel">
         <h3>📊 IDC 실시간 시스템 자원 모니터링</h3>
         <div class="display-row"><span>실제 실시간 종합 트래픽/부하</span><span id="trafficDisplay" class="val-box">0%</span></div>
         <div class="display-row"><span>서버 인프라 최종 전송 부하</span><span id="loadDisplay" class="val-box" style="color: #3498db;">0%</span></div>
-        
         <hr style="border:0; border-top:1px solid #ddd; margin: 15px 0;">
-        
         <h3 style="color: #e67e22;">⚡ 실시간 측정 데이터 (INA219)</h3>
         <div class="display-row"><span>실시간 전압</span><span id="voltDisplay" class="val-box">0.00 V</span></div>
         <div class="display-row"><span>실시간 전류</span><span id="ampDisplay" class="val-box">0.00 A</span></div>
         <div class="display-row"><span>실시간 전력</span><span id="wattDisplay" class="val-box">0.00 W</span></div>
-
         <button id="filterBtn" class="btn btn-filter" style="margin-top:15px;">2. 실시간 보안 모자이크 작동</button>
-
         <div class="switch-container">
             <span style="color: #27ae60; font-weight: bold;">🟢 그린 컴퓨팅 활성화</span>
             <label class="switch"><input type="checkbox" id="greenSwitch"><span class="slider"></span></label>
         </div>
     </div>
-
     <div class="status-box" id="statusText">상태: 아두이노 블루투스 연결이 필요합니다.</div>
 </div>
 
-<!-- 기존 HTML 코드는 그대로 유지하시고, 아래 <script> 부분만 교체하세요 -->
 <script>
     let rx = null;
     let player = null;
     let isFiltering = false;
 
-    // ... (상단 유튜브 API 및 기존 로직 유지)
+    const tag = document.createElement('script');
+    tag.src = "https://www.youtube.com/iframe_api";
+    document.getElementsByTagName('script')[0].parentNode.insertBefore(tag, document.getElementsByTagName('script')[0]);
+    function onYouTubeIframeAPIReady() { player = new YT.Player('player', { height: '100%', width: '100%', videoId: 'dQw4w9WgXcQ', playerVars: { 'playsinline': 1 } }); }
 
-    // [개선된 블루투스 연결 로직]
+    document.getElementById('filterBtn').addEventListener('click', () => {
+        isFiltering = !isFiltering;
+        document.querySelector('iframe').style.filter = isFiltering ? 'blur(8px) contrast(150%)' : 'none';
+        document.getElementById('filterBtn').innerText = isFiltering ? "2. 실시간 보안 모자이크 종료" : "2. 실시간 보안 모자이크 작동";
+    });
+
     document.getElementById('connectBtn').addEventListener('click', async () => {
-        const connectBtn = document.getElementById('connectBtn');
         try {
-            // 1. 기기 요청
             const device = await navigator.bluetooth.requestDevice({ 
                 acceptAllDevices: true, 
                 optionalServices: ["0000ffe0-0000-1000-8000-00805f9b34fb"] 
@@ -83,41 +78,32 @@
             const service = await server.getPrimaryService("0000ffe0-0000-1000-8000-00805f9b34fb");
             rx = await service.getCharacteristics().then(c => c[0]);
             
-            // 2. 연결 성공 UI 개선
-            connectBtn.style.backgroundColor = "#2ecc71"; // 연두색
-            connectBtn.innerText = "✔ 연동 완료";
+            document.getElementById('connectBtn').style.backgroundColor = "#2ecc71";
+            document.getElementById('connectBtn').innerText = "✔ 연동 완료";
             document.getElementById('statusText').innerText = "상태: 데이터 수신 중...";
 
-            // 3. 데이터 수신 처리 (아두이노의 Serial.print(V,A,W)와 정확히 매칭)
             await rx.startNotifications();
             rx.addEventListener('characteristicvaluechanged', (event) => {
-                const decoder = new TextDecoder();
-                const rawData = decoder.decode(event.target.value);
-                // 콘솔에서 데이터가 들어오는지 확인 가능
-                console.log("아두이노 데이터:", rawData); 
-                
-                const data = rawData.trim().split(',');
+                let data = new TextDecoder().decode(event.target.value).trim().split(',');
                 if (data.length >= 3) {
                     document.getElementById('voltDisplay').innerText = data[0] + " V";
                     document.getElementById('ampDisplay').innerText = data[1] + " A";
                     document.getElementById('wattDisplay').innerText = data[2] + " W";
                 }
             });
-        } catch (e) { 
-            console.error(e);
-            alert("연결 실패: " + e.message);
-        }
+        } catch (e) { alert("연결 실패: " + e); }
     });
 
-    // [트래픽 데이터 송신 로직]
     setInterval(() => {
-        // ... (기존 load 계산 로직 유지)
+        let base = (player && player.getPlayerState() === 1) ? 20 + Math.round(Math.random() * 10) : 0;
+        let totalLoad = base + (isFiltering ? 40 : 0);
+        let greenOn = document.getElementById('greenSwitch').checked;
+        let finalLoad = greenOn ? Math.round(totalLoad * (0.35 + (totalLoad / 200))) : totalLoad;
         
-        // 아두이노로 데이터 전송 (성공했던 방식)
-        if (rx) {
-            let sendData = Math.round(finalLoad) + "\n";
-            rx.writeValueWithoutResponse(new TextEncoder().encode(sendData));
-        }
+        document.getElementById('trafficDisplay').innerText = Math.round(totalLoad) + "%";
+        document.getElementById('loadDisplay').innerText = Math.round(finalLoad) + "%";
+        
+        if (rx) rx.writeValueWithoutResponse(new TextEncoder().encode(Math.round(finalLoad) + "\n"));
     }, 500);
 </script>
 </body>
