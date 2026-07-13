@@ -1,24 +1,62 @@
 <!DOCTYPE html>
 <html lang="ko">
-<head><meta charset="UTF-8"><title>Green IDC Dashboard</title>
-<style>
-    body { font-family: sans-serif; text-align: center; padding: 20px; }
-    .btn { padding: 15px; width: 80%; margin: 10px; cursor: pointer; color: white; border: none; border-radius: 8px; }
-    .btn-connect { background: #3498db; }
-</style>
+<head>
+    <meta charset="UTF-8">
+    <title>Mini Green Computing IDC Dashboard</title>
+    <!-- CSS 스타일은 기존 것 그대로 유지 -->
+    <style>
+        :root { --primary-color: #2ecc71; --danger-color: #e74c3c; --background-color: #f5f6fa; --card-color: #ffffff; --text-color: #2c3e50; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--background-color); color: var(--text-color); margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .container { background-color: var(--card-color); padding: 30px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); width: 100%; max-width: 560px; text-align: center; }
+        h1 { font-size: 24px; margin-bottom: 5px; color: #1abc9c; }
+        .btn { width: 100%; padding: 15px; font-size: 16px; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; transition: background 0.2s; margin-bottom: 10px; color: white; }
+        .btn-connect { background-color: #3498db; }
+        .btn-filter { background-color: #9b59b6; }
+        .panel { background: #f8f9fa; border: 1px solid #e9ecef; padding: 20px; border-radius: 12px; margin-bottom: 20px; text-align: left; }
+        .display-row { display: flex; justify-content: space-between; margin: 12px 0; font-weight: bold; }
+        .val-box { font-size: 18px; color: #2c3e50; }
+        .status-box { font-size: 13px; color: #95a5a6; border-top: 1px solid #eee; padding-top: 15px; margin-top: 20px; text-align: center; }
+    </style>
 </head>
 <body>
-    <h1>Green IDC 시스템</h1>
-    <button id="connectBtn" class="btn btn-connect">1. 아두이노 블루투스 연결</button>
-    <div id="statusText">상태: 연결 대기 중</div>
-    <div style="margin-top:20px;">
-        <div>전압: <span id="volt">0.00</span> V</div>
-        <div>전류: <span id="amp">0.00</span> A</div>
-        <div>전력: <span id="watt">0.00</span> W</div>
+
+<div class="container">
+    <h1>미니 그린 컴퓨팅 시스템 (Green IDC)</h1>
+    <button id="connectBtn" class="btn btn-connect">1. 아두이노 블루투스 인프라 연결</button>
+    <div style="position:relative; width:100%; padding-bottom:56.25%; background:#000; border-radius:8px; overflow:hidden;">
+        <div id="player"></div>
     </div>
+
+    <div class="panel">
+        <div class="display-row"><span>실시간 트래픽</span><span id="trafficDisplay" class="val-box">0%</span></div>
+        <div class="display-row"><span>서버 부하</span><span id="loadDisplay" class="val-box" style="color: #3498db;">0%</span></div>
+        <hr>
+        <div class="display-row"><span>전압</span><span id="voltDisplay" class="val-box">0.00 V</span></div>
+        <div class="display-row"><span>전류</span><span id="ampDisplay" class="val-box">0.00 A</span></div>
+        <div class="display-row"><span>전력</span><span id="wattDisplay" class="val-box">0.00 W</span></div>
+        <button id="filterBtn" class="btn btn-filter" style="margin-top:15px;">2. 실시간 보안 모자이크 작동</button>
+    </div>
+    <div class="status-box" id="statusText">상태: 아두이노 블루투스 연결이 필요합니다.</div>
+</div>
 
 <script>
     let rx = null;
+    let player = null;
+    let isFiltering = false;
+
+    // 유튜브 API 로드
+    const tag = document.createElement('script');
+    tag.src = "https://www.youtube.com/iframe_api";
+    document.head.appendChild(tag);
+    function onYouTubeIframeAPIReady() { player = new YT.Player('player', { height: '100%', width: '100%', videoId: 'dQw4w9WgXcQ', playerVars: { 'playsinline': 1 } }); }
+
+    // 보안 모자이크
+    document.getElementById('filterBtn').addEventListener('click', () => {
+        isFiltering = !isFiltering;
+        document.querySelector('iframe').style.filter = isFiltering ? 'blur(8px) contrast(150%)' : 'none';
+    });
+
+    // 블루투스 연결
     document.getElementById('connectBtn').addEventListener('click', async () => {
         try {
             const device = await navigator.bluetooth.requestDevice({ 
@@ -33,24 +71,29 @@
             document.getElementById('connectBtn').innerText = "✔ 연동 완료";
             
             await rx.startNotifications();
-            rx.addEventListener('characteristicvaluechanged', (e) => {
-                const data = new TextDecoder().decode(e.target.value).trim().split(',');
-                if(data.length >= 3) {
-                    document.getElementById('volt').innerText = data[0];
-                    document.getElementById('amp').innerText = data[1];
-                    document.getElementById('watt').innerText = data[2];
+            rx.addEventListener('characteristicvaluechanged', (event) => {
+                let data = new TextDecoder().decode(event.target.value).trim().split(',');
+                if (data.length >= 3) {
+                    document.getElementById('voltDisplay').innerText = data[0] + " V";
+                    document.getElementById('ampDisplay').innerText = data[1] + " A";
+                    document.getElementById('wattDisplay').innerText = data[2] + " W";
                 }
             });
-        } catch(e) { alert("연결 실패: " + e); }
+        } catch (e) { alert("연결 실패: " + e); }
     });
 
+    // 데이터 송신 루프 (데이터 갱신 및 아두이노 전송)
     setInterval(() => {
-        if (rx) {
-            // 임의의 트래픽 값 0~100 생성 (유튜브 재생 상태에 따라 조절하세요)
-            let traffic = Math.floor(Math.random() * 100); 
-            rx.writeValueWithoutResponse(new TextEncoder().encode(traffic + "\n"));
-        }
-    }, 1000);
+        if (!player || typeof player.getPlayerState !== 'function') return;
+        
+        let base = (player.getPlayerState() === 1) ? 20 + Math.random() * 10 : 0;
+        let finalLoad = base + (isFiltering ? 40 : 0);
+        
+        document.getElementById('trafficDisplay').innerText = Math.round(base) + "%";
+        document.getElementById('loadDisplay').innerText = Math.round(finalLoad) + "%";
+        
+        if (rx) rx.writeValueWithoutResponse(new TextEncoder().encode(Math.round(finalLoad) + "\n"));
+    }, 500);
 </script>
 </body>
 </html>
